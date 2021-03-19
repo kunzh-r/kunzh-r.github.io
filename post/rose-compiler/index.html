@@ -1,0 +1,281 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>Rose Compiler | kunzh&#39;s blog</title>
+<meta name="description" content="心能转物，即同如来">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://kunzh-r.github.io/favicon.ico?v=1616159517317">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://kunzh-r.github.io/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://kunzh-r.github.io">
+        <img class="avatar" src="https://kunzh-r.github.io/images/avatar.png?v=1616159517317" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://kunzh-r.github.io">
+        <h1 class="site-title">kunzh&#39;s blog</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">Rose Compiler</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2021-03-19</span>
+            
+          </div>
+          <div class="post-content">
+            <p>本文记载学习 Rose 编译器的一些过程。</p>
+<p>这是一个使用 Rose 的最简单程序，该程序先初始化，然后读入 c/c++ 源文件，解析生成 AST，然后再把 AST 重新生成 c/c++ 代码，交由后端处理（此处后端由 <code>.configure</code> 指定，一般为 gcc）。</p>
+<pre><code class="language-c++">#include &lt;iostream&gt;
+#include &lt;rose.h&gt;
+
+int main(int argc, char* argv[]){
+    // A slightly more memorable way to initialize ROSE
+    ROSE_INITIALIZE;
+
+    SgProject* project = frontend(argc, argv);
+
+    // Test codes that traverse the AST, do a set of sanity check for AST
+    AstTests::runAllTests(project);
+
+    return backend(project);
+}
+</code></pre>
+<h2 id="ast-construction">AST Construction</h2>
+<p>From [ROSE-Tutorial] Chapter 32</p>
+<p>以两个例子来说明如何为一句变量声明构造 IR 为 SAGE III 的 AST 子树并将其插入原有的 AST 树中。</p>
+<pre><code class="language-cpp">// 本例使用高层 AST (接口)来构造一句变量声明，并操作 SageBuilder 和 SageInterface 的接口
+// (1) 接受变量名和类型，
+// SgVariableDeclaration*
+//   SageBuilder::buildVariableDeclaration(const char* name, SgType* type,
+//     SgInitializer * varInit, SgScopeStatement* scope)
+// (2) 把声明插入到一个基本块的顶部
+// void SageInterface::prependStatement(SgStatement *stmt, SgScopeStatement* scope)
+
+// SageBuilder contains all high level buildXXX() functions,
+// such as buildVariableDeclaration(), buildLabelStatement() etc.
+// SageInterface contains high level AST manipulation and utility functions,
+// e.g. appendStatement(), lookupFunctionSymbolInParentScopes() etc.
+#include &quot;rose.h&quot;
+using namespace SageBuilder;
+using namespace SageInterface;
+
+class SimpleInstrumentation : public SgSimpleProcessing {
+public:
+  void visit(SgNode *astNode);
+};
+
+void SimpleInstrumentation::visit(SgNode *astNode) {
+  SgBasicBlock *block = isSgBasicBlock(astNode);
+  if (block != NULL) {
+    SgVariableDeclaration *variableDeclaration =
+        buildVariableDeclaration(&quot;newVariable&quot;, buildIntType()); // (1)
+    prependStatement(variableDeclaration, block);	// (2)
+  }
+}
+
+int main(int argc, char *argv[]) {
+  // Initialize and check compatibility. See Rose::initialize
+  ROSE_INITIALIZE;
+
+  SgProject *project = frontend(argc, argv);
+  ROSE_ASSERT(project != NULL);
+
+  SimpleInstrumentation treeTraversal;
+  treeTraversal.traverseInputFiles(project, preorder);
+
+  AstTests::runAllTests(project);
+  return backend(project);
+}
+
+</code></pre>
+<pre><code class="language-cpp">// 本例使用低层 AST (接口)来构造一句变量声明，并将它插入块的顶部。
+// 使用了 SgNode 的构造函数和其他成员函数。
+// 此时对作用域、父指针、符号表等产生的副作用必须由程序员手动处理。
+
+// ROSE is a tool for building preprocessors, this file is an example
+// preprocessor built with ROSE. Specifically it shows the design of a
+// transformation to instrument source code, placing source code at the top and
+// bottom of each basic block. Member functions of SAGE III AST node classes are
+// directly used. So all details for Sg_File_Info, scope, parent, symbol tables
+// have to be explicitly handled.
+
+#include &quot;rose.h&quot;
+
+class SimpleInstrumentation : public SgSimpleProcessing {
+public:
+  void visit(SgNode *astNode);
+};
+
+void SimpleInstrumentation::visit(SgNode *astNode) {
+  SgBasicBlock *block = isSgBasicBlock(astNode);
+  if (block != NULL) {
+    // Mark this as a transformation (required)
+    Sg_File_Info *sourceLocation =
+        Sg_File_Info::generateDefaultFileInfoForTransformationNode();
+    ROSE_ASSERT(sourceLocation != NULL);
+
+    SgType *type = new SgTypeInt();
+    ROSE_ASSERT(type != NULL);
+
+    SgName name = &quot;newVariable&quot;;
+
+    SgVariableDeclaration *variableDeclaration =
+        new SgVariableDeclaration(sourceLocation, name, type);
+    ROSE_ASSERT(variableDeclaration != NULL);
+
+    SgInitializedName *initializedName =
+        *(variableDeclaration-&gt;get_variables().begin());
+    initializedName-&gt;set_file_info(
+        Sg_File_Info::generateDefaultFileInfoForTransformationNode());
+
+    // DQ (6/18/2007): The unparser requires that the scope be set (for name
+    // qualification to work).
+    initializedName-&gt;set_scope(block);
+
+    // Liao (2/13/2008): AstTests requires this to be set
+    variableDeclaration-&gt;set_firstNondefiningDeclaration(variableDeclaration);
+
+    ROSE_ASSERT(block-&gt;get_statements().size() &gt; 0);
+
+    block-&gt;get_statements().insert(block-&gt;get_statements().begin(),
+                                   variableDeclaration);
+    variableDeclaration-&gt;set_parent(block);
+
+    // Add a symbol to the sybol table for the new variable
+    SgVariableSymbol *variableSymbol = new SgVariableSymbol(initializedName);
+    block-&gt;insert_symbol(name, variableSymbol);
+  }
+}
+
+int main(int argc, char *argv[]) {
+  // Initialize and check compatibility. See Rose::initialize
+  ROSE_INITIALIZE;
+
+  SgProject *project = frontend(argc, argv);
+  ROSE_ASSERT(project != NULL);
+
+  SimpleInstrumentation treeTraversal;
+  treeTraversal.traverseInputFiles(project, preorder);
+
+  AstTests::runAllTests(project);
+  return backend(project);
+}
+</code></pre>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://kunzh-r.github.io/post/lesslessying-de-gao-bie-greatergreater-lu-xun/">
+              <h3 class="post-title">
+                下一篇：《影的告别》 鲁迅
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">心能转物，即同如来</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://kunzh-r.github.io/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>
