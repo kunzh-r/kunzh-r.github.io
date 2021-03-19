@@ -1,13 +1,20 @@
+<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8" >
+
 <title>计算机领域的几个笑话 | kunzh&#39;s blog</title>
-<link rel="shortcut icon" href="https://kunzh-r.github.io/favicon.ico?v=1616139328208">
-<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://kunzh-r.github.io/favicon.ico?v=1616139361839">
 <link rel="stylesheet" href="https://kunzh-r.github.io/styles/main.css">
-<link rel="alternate" type="application/atom+xml" title="计算机领域的几个笑话 | kunzh&#39;s blog - Atom Feed" href="https://kunzh-r.github.io/atom.xml">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 
 
 
@@ -19,84 +26,84 @@
 “好的，我会给你讲一个TCP 的笑话。”
 “好的，我会听一个TCP ..." />
     <meta name="keywords" content="" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
-    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
   </head>
   <body>
-    <div class="main">
-      <div class="main-content">
-        <div class="site-header">
-  <a href="https://kunzh-r.github.io">
-  <img class="avatar" src="https://kunzh-r.github.io/images/avatar.png?v=1616139328208" alt="">
-  </a>
-  <h1 class="site-title">
-    kunzh&#39;s blog
-  </h1>
-  <p class="site-description">
-    心能转物，即同如来
-  </p>
-  <div class="menu-container">
-    
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://kunzh-r.github.io">
+        <img src="https://kunzh-r.github.io/images/avatar.png?v=1616139361839" class="site-logo">
+        <h1 class="site-title">kunzh&#39;s blog</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
       
-        <a href="/" class="menu">
-          首页
-        </a>
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
       
-    
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
       
-        <a href="/archives" class="menu">
-          归档
-        </a>
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
       
-    
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
       
-        <a href="/tags" class="menu">
-          标签
-        </a>
-      
-    
-      
-        <a href="/post/about" class="menu">
-          关于
-        </a>
-      
-    
+    </div>
   </div>
-  <div class="social-container">
-    
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
       
-    
+        
       
-    
+        
       
-    
+        
       
-    
+        
       
-    
+        
+      
+    </div>
+    <div class="site-description">
+      心能转物，即同如来
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://kunzh-r.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
   </div>
 </div>
 
-        <div class="post-detail">
-          <article class="post">
-            <h2 class="post-title">
-              计算机领域的几个笑话
-            </h2>
-            <div class="post-info">
-              <span>
-                2021-03-13
-              </span>
-              <span>
-                3 min read
-              </span>
-              
-            </div>
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">计算机领域的几个笑话</h2>
+            <div class="post-date">2021-03-13</div>
             
-              <img class="post-feature-image" src="https://upyuns.mcloc.cn/bing/04-Mar-2021/04-Mar-2021.jpg" alt="">
+              <div class="feature-container" style="background-image: url('https://upyuns.mcloc.cn/bing/04-Mar-2021/04-Mar-2021.jpg')">
+              </div>
             
-            <div class="post-content-wrapper">
-              <div class="post-content">
-                <p>本文的笑话搜集自网络。</p>
+            <div class="post-content" v-pre>
+              <p>本文的笑话搜集自网络。</p>
 <h3 id="1-tcp-udp">1. TCP &amp; UDP</h3>
 <p>“嗨，我想听一个 TCP 的笑话。”<br>
 “你好，你想听 TCP 的笑话么？”<br>
@@ -141,94 +148,45 @@ C说：因为我没有对象。</p>
 <p>为什么那么多影视剧和动画片放大招之前都要喊招式的名称？<br>
 因为调用函数前要先声明。</p>
 
-              </div>
-              <div class="toc-container">
-                <ul class="markdownIt-TOC">
-<li>
-<ul>
-<li>
-<ul>
-<li><a href="#1-tcp-udp">1. TCP &amp; UDP</a></li>
-<li><a href="#2-%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80">2. 编程语言</a></li>
-<li><a href="#3-%E6%A0%88">3. 栈</a></li>
-<li><a href="#4-c-%E7%9A%84-class">4. C++ 的 class</a></li>
-<li><a href="#5-ie-%E6%B5%8F%E8%A7%88%E5%99%A8">5. IE 浏览器</a></li>
-<li><a href="#6-%E5%88%A4%E6%96%AD">6. 判断</a></li>
-<li><a href="#7-%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1">7. 面向对象</a></li>
-<li><a href="#8-%E5%85%88%E8%AF%B4%E5%90%8E%E5%81%9A">8. 先说后做</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-
-              </div>
             </div>
-          </article>
-        </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://kunzh-r.github.io/post/testing/">
+                  <h3 class="post-title">
+                    Testing
+                  </h3>
+                </a>
+              </div>
+            
 
-        
-          <div class="next-post">
-            <div class="next">下一篇</div>
-            <a href="https://kunzh-r.github.io/post/testing/">
-              <h3 class="post-title">
-                Testing
-              </h3>
-            </a>
+            
+
           </div>
-        
 
-        
-
-        <div class="site-footer">
-  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a>
-  <a class="rss" href="https://kunzh-r.github.io/atom.xml" target="_blank">
-    <i class="ri-rss-line"></i> RSS
-  </a>
-</div>
-
+        </div>
       </div>
     </div>
 
-    <script>
-      hljs.initHighlightingOnLoad()
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
 
-      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+AOS.init();
 
-      // This should probably be throttled.
-      // Especially because it triggers during smooth scrolling.
-      // https://lodash.com/docs/4.17.10#throttle
-      // You could do like...
-      // window.addEventListener("scroll", () => {
-      //    _.throttle(doThatStuff, 100);
-      // });
-      // Only not doing it here to keep this Pen dependency-free.
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
 
-      window.addEventListener("scroll", event => {
-        let fromTop = window.scrollY;
+</script>
 
-        mainNavLinks.forEach((link, index) => {
-          let section = document.getElementById(decodeURI(link.hash).substring(1));
-          let nextSection = null
-          if (mainNavLinks[index + 1]) {
-            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
-          }
-          if (section.offsetTop <= fromTop) {
-            if (nextSection) {
-              if (nextSection.offsetTop > fromTop) {
-                link.classList.add("current");
-              } else {
-                link.classList.remove("current");    
-              }
-            } else {
-              link.classList.add("current");
-            }
-          } else {
-            link.classList.remove("current");
-          }
-        });
-      });
 
-    </script>
+
+
+
+
   </body>
 </html>
