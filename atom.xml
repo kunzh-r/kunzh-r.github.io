@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://kunzh-r.github.io</id>
     <title>kunzh&apos;s blog</title>
-    <updated>2021-03-19T13:13:02.899Z</updated>
+    <updated>2021-03-20T00:42:53.745Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://kunzh-r.github.io"/>
     <link rel="self" href="https://kunzh-r.github.io/atom.xml"/>
@@ -17,8 +17,8 @@
         </link>
         <updated>2021-03-19T13:05:23.000Z</updated>
         <content type="html"><![CDATA[<p>本文记载学习 Rose 编译器的一些过程。</p>
-<p>这是一个使用 Rose 的最简单程序，该程序先初始化，然后读入 c/c++ 源文件，解析生成 AST，然后再把 AST 重新生成 c/c++ 代码，交由后端处理（此处后端由 <code>.configure</code> 指定，一般为 gcc）。</p>
-<pre><code class="language-c++">#include &lt;iostream&gt;
+<p>这是一个使用 Rose 的最简单程序，该程序先初始化，然后读入 c/c++ 源文件，解析生成 AST，然后再把 AST 重新生成 c/c++ 代码，交由后端处理（此处后端由 .configure 指定，一般为 gcc）。</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
 #include &lt;rose.h&gt;
 
 int main(int argc, char* argv[]){
@@ -35,8 +35,11 @@ int main(int argc, char* argv[]){
 </code></pre>
 <h2 id="ast-construction">AST Construction</h2>
 <p>From [ROSE-Tutorial] Chapter 32</p>
+<h4 id="声明变量-variable-declaration">声明变量 Variable Declaration</h4>
 <p>以两个例子来说明如何为一句变量声明构造 IR 为 SAGE III 的 AST 子树并将其插入原有的 AST 树中。</p>
-<pre><code class="language-cpp">// 本例使用高层 AST (接口)来构造一句变量声明，并操作 SageBuilder 和 SageInterface 的接口
+<h5 id="法1">法1：</h5>
+<pre><code class="language-cpp">// src/tutorial/addVariableDeclaration2.C
+// 本例使用高层 AST (接口)来构造一句变量声明，并操作 SageBuilder 和 SageInterface 的接口
 // (1) 接受变量名和类型，
 // SgVariableDeclaration*
 //   SageBuilder::buildVariableDeclaration(const char* name, SgType* type,
@@ -79,9 +82,10 @@ int main(int argc, char *argv[]) {
   AstTests::runAllTests(project);
   return backend(project);
 }
-
 </code></pre>
-<pre><code class="language-cpp">// 本例使用低层 AST (接口)来构造一句变量声明，并将它插入块的顶部。
+<h5 id="法2">法2：</h5>
+<pre><code class="language-cpp">// src/tutorial/addVariableDeclaration.C
+// 本例使用低层 AST (接口)来构造一句变量声明，并将它插入块的顶部。
 // 使用了 SgNode 的构造函数和其他成员函数。
 // 此时对作用域、父指针、符号表等产生的副作用必须由程序员手动处理。
 
@@ -153,6 +157,517 @@ int main(int argc, char *argv[]) {
   AstTests::runAllTests(project);
   return backend(project);
 }
+</code></pre>
+<h4 id="表达式-expressions">表达式 Expressions</h4>
+<p>在输入程序的 main() 函数的最后一行添加两句赋值语句。</p>
+<pre><code class="language-c++">// src/tests/nonsmoke/functional/roseTests/astInterfaceTests/inputbuildExpression.C
+int main()
+{
+  double alpha= 0.5;
+  double beta = 0.1;
+  double gama = 0.7;
+
+  return 0;
+}
+</code></pre>
+<pre><code class="language-c++">int main()
+{
+  double alpha= 0.5;
+  double beta = 0.1;
+  double gama = 0.7;
+  double result = 2 * (1 - gama * gama);
+  double result2 = alpha * beta;
+  return 0;
+}
+</code></pre>
+<pre><code class="language-c++">// src/tutorial/addExpression.C
+
+// Expressions can be built using both bottomup (recommended ) and topdown
+// orders. Bottomup: build operands first, operation later Topdown: build
+// operation first, set operands later on.
+
+#include &quot;rose.h&quot;
+using namespace SageBuilder;
+using namespace SageInterface;
+
+int main(int argc, char *argv[]) {
+  // Initialize and check compatibility. See Rose::initialize
+  ROSE_INITIALIZE;
+
+  SgProject *project = frontend(argc, argv);
+  // go to the function body
+  SgFunctionDeclaration *mainFunc = findMain(project);
+
+  SgBasicBlock *body = mainFunc-&gt;get_definition()-&gt;get_body();
+  pushScopeStack(body);
+
+  // bottomup: build operands first, create expression later on
+  //  double result = 2 * (1 - gama * gama);
+  SgExpression *init_exp =
+      buildMultiplyOp(buildDoubleVal(2.0),
+                      buildSubtractOp(buildDoubleVal(1.0),
+                                      buildMultiplyOp(buildVarRefExp(&quot;gama&quot;),
+                                                      buildVarRefExp(&quot;gama&quot;))));
+  SgVariableDeclaration *decl = buildVariableDeclaration(
+      &quot;result&quot;, buildDoubleType(), buildAssignInitializer(init_exp));
+
+  SgStatement *laststmt = getLastStatement(topScopeStack());
+  insertStatementBefore(laststmt, decl);
+
+  // topdown: build expression first, set operands later on
+  // double result2 = alpha * beta;
+  SgExpression *init_exp2 = buildMultiplyOp();
+  setLhsOperand(init_exp2, buildVarRefExp(&quot;alpha&quot;));
+  setRhsOperand(init_exp2, buildVarRefExp(&quot;beta&quot;));
+
+  SgVariableDeclaration *decl2 = buildVariableDeclaration(
+      &quot;result2&quot;, buildDoubleType(), buildAssignInitializer(init_exp2));
+  laststmt = getLastStatement(topScopeStack());
+  insertStatementBefore(laststmt, decl2);
+
+  popScopeStack();
+  AstTests::runAllTests(project);
+
+  // invoke backend compiler to generate object/binary files
+  return backend(project);
+}
+</code></pre>
+<h4 id="赋值语句-assignment-statements">赋值语句 Assignment Statements</h4>
+<pre><code class="language-c++">int main(int argc, char* argv[])
+{
+  int i;
+  return 0;
+}
+</code></pre>
+<pre><code class="language-c++">int main(int argc, char* argv[])
+{
+  int i;
+  i = 9;
+  return 0;
+}
+</code></pre>
+<pre><code class="language-c++">// SageBuilder contains all high level buildXXX() functions,
+// such as buildVariableDeclaration(), buildLabelStatement() etc.
+// SageInterface contains high level AST manipulation and utility functions,
+// e.g. appendStatement(), lookupFunctionSymbolInParentScopes() etc.
+#include &quot;rose.h&quot;
+using namespace SageBuilder;
+using namespace SageInterface;
+
+int main(int argc, char *argv[]) {
+  // Initialize and check compatibility. See Rose::initialize
+  ROSE_INITIALIZE;
+
+  SgProject *project = frontend(argc, argv);
+
+  // go to the function body of main()
+  // and push it to the scope stack
+  SgFunctionDeclaration *mainFunc = findMain(project);
+  SgBasicBlock *body = mainFunc-&gt;get_definition()-&gt;get_body();
+  pushScopeStack(body);
+
+  // build a variable assignment statement: i=9;
+  // buildVarRefExp(string varName) will automatically search for a matching
+  // variable symbol starting from the current scope to the global scope.
+  SgExprStatement *assignStmt =
+      buildAssignStatement(buildVarRefExp(&quot;i&quot;), buildIntVal(9));
+
+  // insert it before the last return statement
+  SgStatement *lastStmt = getLastStatement(topScopeStack());
+  insertStatementBefore(lastStmt, assignStmt);
+
+  popScopeStack();
+
+  // AstTests ensures there is no dangling SgVarRefExp without a mathing symbol
+  AstTests::runAllTests(project);
+  return backend(project);
+}
+</code></pre>
+<h4 id="函数-functions">函数 Functions</h4>
+<p>插入一个函数</p>
+<pre><code class="language-c++">int main()
+   {
+     for (int i=0; i &lt; 4; i++)
+        {
+          int x;
+        }
+
+     return 0;
+   }
+</code></pre>
+<pre><code class="language-c++">int my_function(int &amp;var_name)
+{
+    ++var_name;
+}
+
+int main(){
+    for(int i=0; i&lt;4; i++){
+        int x;
+    }
+    return 0;
+}
+</code></pre>
+<h5 id="法1使用高层api此法在需要-scope-信息时被显式地传递它">法1：使用高层API，此法在需要 scope 信息时被显式地传递它。</h5>
+<pre><code class="language-c++">// src/tutorial/addFunctionDeclaration2.C
+
+// This example shows how to construct a defining function (with a function
+// body) using high level AST construction interfaces.
+//
+#include &quot;rose.h&quot;
+using namespace SageBuilder;
+using namespace SageInterface;
+
+class SimpleInstrumentation : public SgSimpleProcessing {
+public:
+  void visit(SgNode *astNode);
+};
+
+void SimpleInstrumentation::visit(SgNode *astNode) {
+  SgGlobal *globalScope = isSgGlobal(astNode);
+  if (globalScope != NULL) {
+    // ********************************************************************
+    // 创建参数列表(此处只有一个参数)
+    // Create a parameter list with a parameter
+    // ********************************************************************
+    SgName var1_name = &quot;var_name&quot;;
+    SgReferenceType *ref_type = buildReferenceType(buildIntType());
+    SgInitializedName *var1_init_name =
+        buildInitializedName(var1_name, ref_type);
+    SgFunctionParameterList *parameterList = buildFunctionParameterList();
+    appendArg(parameterList, var1_init_name);
+
+    // *****************************************************
+    // 创建函数声明(名字，返回类型，参数表)
+    // Create a defining functionDeclaration (with a function body)
+    // *****************************************************
+    SgName func_name = &quot;my_function&quot;;
+    SgFunctionDeclaration *func = buildDefiningFunctionDeclaration(
+        func_name, buildIntType(), parameterList, globalScope);
+    SgBasicBlock *func_body = func-&gt;get_definition()-&gt;get_body();
+
+    // ********************************************************
+	// 往函数体里加入一条语句
+    // Insert a statement in the function body
+    // *******************************************************
+
+    SgVarRefExp *var_ref = buildVarRefExp(var1_name, func_body);
+    SgPlusPlusOp *pp_expression = buildPlusPlusOp(var_ref);
+    SgExprStatement *new_stmt = buildExprStatement(pp_expression);
+
+    // insert a statement into the function body
+    prependStatement(new_stmt, func_body);
+    prependStatement(func, globalScope);
+  }
+}
+
+int main(int argc, char *argv[]) {
+  // Initialize and check compatibility. See Rose::initialize
+  ROSE_INITIALIZE;
+
+  SgProject *project = frontend(argc, argv);
+  ROSE_ASSERT(project != NULL);
+
+  SimpleInstrumentation treeTraversal;
+  treeTraversal.traverseInputFiles(project, preorder);
+
+  AstTests::runAllTests(project);
+  return backend(project);
+}
+</code></pre>
+<h5 id="法2与法1大致相同使用高层api但是利用额外的栈此法在需要-scope-信息时被隐式地传递">法2：与法1大致相同，使用高层API，但是利用额外的栈，此法在需要 scope 信息时被隐式地传递。</h5>
+<pre><code class="language-c++">// src/tutorial/addFunctionDeclaration3.C
+
+// This example shows how to construct a defining function (with a function
+// body) using high level AST construction interfaces. A scope stack is used to
+// pass scope information implicitly to some builder functions
+#include &quot;rose.h&quot;
+using namespace SageBuilder;
+using namespace SageInterface;
+
+int main(int argc, char *argv[]) {
+  // Initialize and check compatibility. See Rose::initialize
+  ROSE_INITIALIZE;
+
+  SgProject *project = frontend(argc, argv);
+  ROSE_ASSERT(project != NULL);
+  SgGlobal *globalScope = getFirstGlobalScope(project);
+
+  // push global scope into stack
+  pushScopeStack(isSgScopeStatement(globalScope));
+
+  // Create a parameter list with a parameter
+  SgName var1_name = &quot;var_name&quot;;
+  SgReferenceType *ref_type = buildReferenceType(buildIntType());
+  SgInitializedName *var1_init_name = buildInitializedName(var1_name, ref_type);
+  SgFunctionParameterList *parameterList = buildFunctionParameterList();
+  appendArg(parameterList, var1_init_name);
+
+  // Create a defining functionDeclaration (with a function body)
+  SgName func_name = &quot;my_function&quot;;
+  SgFunctionDeclaration *func = buildDefiningFunctionDeclaration(
+      func_name, buildIntType(), parameterList);
+  SgBasicBlock *func_body = func-&gt;get_definition()-&gt;get_body();
+
+  // push function body scope into stack
+  pushScopeStack(isSgScopeStatement(func_body));
+
+  // build a statement in the function body
+  SgVarRefExp *var_ref = buildVarRefExp(var1_name);
+  SgPlusPlusOp *pp_expression = buildPlusPlusOp(var_ref);
+  SgExprStatement *new_stmt = buildExprStatement(pp_expression);
+
+  // insert a statement into the function body
+  appendStatement(new_stmt);
+  //  pop function body off the stack
+  popScopeStack();
+
+  //  insert the function declaration into the scope at the top of the scope
+  //  stack
+  prependStatement(func);
+  popScopeStack();
+
+  AstTests::runAllTests(project);
+  return backend(project);
+}
+</code></pre>
+<h5 id="法3使用低层-api-构建">法3：使用低层 API 构建</h5>
+<pre><code class="language-c++">// src/tutorial/addFunctionDeclaration.C
+
+// ROSE is a tool for building preprocessors, this file is an example
+// preprocessor built with ROSE. Specifically it shows the design of a
+// transformation to instrument source code, placing source code at the top of
+// the source file.
+
+#include &quot;rose.h&quot;
+
+#define TRANSFORMATION_FILE_INFO                                               \
+  Sg_File_Info::generateDefaultFileInfoForTransformationNode()
+
+class SimpleInstrumentation : public SgSimpleProcessing {
+public:
+  void visit(SgNode *astNode);
+};
+
+void SimpleInstrumentation::visit(SgNode *astNode) {
+  SgGlobal *globalScope = isSgGlobal(astNode);
+  if (globalScope != NULL) {
+    // *****************************************************
+    // Create the functionDeclaration
+    // *****************************************************
+    SgType *func_return_type = new SgTypeInt();
+    SgName func_name = &quot;my_function&quot;;
+    SgFunctionType *func_type = new SgFunctionType(func_return_type, false);
+    SgFunctionDeclaration *func = new SgFunctionDeclaration(
+        TRANSFORMATION_FILE_INFO, func_name, func_type);
+    SgFunctionDefinition *func_def =
+        new SgFunctionDefinition(TRANSFORMATION_FILE_INFO, func);
+    SgBasicBlock *func_body = new SgBasicBlock(TRANSFORMATION_FILE_INFO);
+
+    // set the end source position as transformation generated
+    // since the constructors only set the beginning source position by default
+    func-&gt;set_endOfConstruct(TRANSFORMATION_FILE_INFO);
+    func-&gt;get_endOfConstruct()-&gt;set_parent(func);
+
+    func_def-&gt;set_endOfConstruct(TRANSFORMATION_FILE_INFO);
+    func_def-&gt;get_endOfConstruct()-&gt;set_parent(func_def);
+
+    func_body-&gt;set_endOfConstruct(TRANSFORMATION_FILE_INFO);
+    func_body-&gt;get_endOfConstruct()-&gt;set_parent(func_body);
+
+    // Sets the body into the definition
+    func_def-&gt;set_body(func_body);
+    // Sets the defintion's parent to the declaration
+    func_def-&gt;set_parent(func);
+
+    // DQ (9/8/2007): Fixup the defining and non-defining declarations
+    ROSE_ASSERT(func-&gt;get_definingDeclaration() == NULL);
+    func-&gt;set_definingDeclaration(func);
+    ROSE_ASSERT(func-&gt;get_definingDeclaration() != NULL);
+    ROSE_ASSERT(func-&gt;get_firstNondefiningDeclaration() != func);
+
+    // DQ (9/8/2007): We have not build a non-defining declaration, so this
+    // should be NULL.
+    ROSE_ASSERT(func-&gt;get_firstNondefiningDeclaration() == NULL);
+
+    // DQ (9/8/2007): Need to add function symbol to global scope!
+    // printf (&quot;Fixing up the symbol table in scope = %p = %s for function = %p
+    // = %s
+    // \n&quot;,globalScope,globalScope-&gt;class_name().c_str(),func,func-&gt;get_name().str());
+    SgFunctionSymbol *functionSymbol = new SgFunctionSymbol(func);
+    globalScope-&gt;insert_symbol(func-&gt;get_name(), functionSymbol);
+    ROSE_ASSERT(globalScope-&gt;lookup_function_symbol(func-&gt;get_name()) != NULL);
+
+    // ********************************************************************
+    // Create the InitializedName for a parameter within the parameter list
+    // ********************************************************************
+    SgName var1_name = &quot;var_name&quot;;
+
+    SgTypeInt *var1_type = new SgTypeInt();
+    SgReferenceType *ref_type = new SgReferenceType(var1_type);
+    SgInitializer *var1_initializer = NULL;
+
+    SgInitializedName *var1_init_name =
+        new SgInitializedName(var1_name, ref_type, var1_initializer, NULL);
+    var1_init_name-&gt;set_file_info(TRANSFORMATION_FILE_INFO);
+
+    // DQ (9/8/2007): We now test this, so it has to be set explicitly.
+    var1_init_name-&gt;set_scope(func_def);
+
+    // DQ (9/8/2007): Need to add variable symbol to global scope!
+    // printf (&quot;Fixing up the symbol table in scope = %p = %s for
+    // SgInitializedName = %p = %s
+    // \n&quot;,globalScope,globalScope-&gt;class_name().c_str(),var1_init_name,var1_init_name-&gt;get_name().str());
+    SgVariableSymbol *var_symbol = new SgVariableSymbol(var1_init_name);
+    func_def-&gt;insert_symbol(var1_init_name-&gt;get_name(), var_symbol);
+    ROSE_ASSERT(func_def-&gt;lookup_variable_symbol(var1_init_name-&gt;get_name()) !=
+                NULL);
+    ROSE_ASSERT(var1_init_name-&gt;get_symbol_from_symbol_table() != NULL);
+
+    // Done constructing the InitializedName variable
+
+    // Insert argument in function parameter list
+    ROSE_ASSERT(func != NULL);
+    // Sg_File_Info * parameterListFileInfo   = new Sg_File_Info();
+    // Sg_File_Info* parameterListFileInfo =
+    // Sg_File_Info::generateDefaultFileInfoForTransformationNode();
+    SgFunctionParameterList *parameterList =
+        new SgFunctionParameterList(TRANSFORMATION_FILE_INFO);
+    ROSE_ASSERT(parameterList != NULL);
+    parameterList-&gt;set_definingDeclaration(NULL);
+    parameterList-&gt;set_firstNondefiningDeclaration(parameterList);
+
+    func-&gt;set_parameterList(parameterList);
+    ROSE_ASSERT(func-&gt;get_parameterList() != NULL);
+    func-&gt;get_parameterList()-&gt;append_arg(var1_init_name);
+
+    // ********************************************************
+    // Insert a statement in the function body
+    // *******************************************************
+
+    // create a VarRefExp
+    // SgVariableSymbol *var_symbol = new SgVariableSymbol(var1_init_name);
+    SgVarRefExp *var_ref =
+        new SgVarRefExp(TRANSFORMATION_FILE_INFO, var_symbol);
+    var_ref-&gt;set_endOfConstruct(TRANSFORMATION_FILE_INFO);
+    var_ref-&gt;get_endOfConstruct()-&gt;set_parent(var_ref);
+
+    // create a ++ expression, 0 for prefix ++
+    SgPlusPlusOp *pp_expression =
+        new SgPlusPlusOp(TRANSFORMATION_FILE_INFO, var_ref, 0);
+    pp_expression-&gt;set_endOfConstruct(TRANSFORMATION_FILE_INFO);
+    pp_expression-&gt;get_endOfConstruct()-&gt;set_parent(pp_expression);
+    markLhsValues(pp_expression);
+
+    // create an expression statement
+    SgExprStatement *new_stmt =
+        new SgExprStatement(TRANSFORMATION_FILE_INFO, pp_expression);
+    new_stmt-&gt;set_endOfConstruct(TRANSFORMATION_FILE_INFO);
+    new_stmt-&gt;get_endOfConstruct()-&gt;set_parent(new_stmt);
+
+#if 0
+       // DQ (9/8/2007): This is no longer required, SgExpressionRoot is not longer used in the ROSE IR.
+       // create an expression type
+          SgTypeInt* expr_type = new SgTypeInt();
+
+       // create an expression root
+          SgExpressionRoot * expr_root = new SgExpressionRoot(TRANSFORMATION_FILE_INFO,pp_expression,expr_type);
+          expr_root-&gt;set_parent(new_stmt);
+
+       // DQ (11/8/2006): Modified to reflect use of SgExpression instead of SgExpressionRoot
+          new_stmt-&gt;set_expression(expr_root);
+
+          pp_expression-&gt;set_parent(new_stmt-&gt;get_expression());
+#endif
+    pp_expression-&gt;set_parent(new_stmt);
+
+    // insert a statement into the function body
+    func_body-&gt;prepend_statement(new_stmt);
+
+    // setting the parent explicitly is not required since it would be done
+    // within AST post-processing
+    func-&gt;set_parent(globalScope);
+
+    // scopes of statments must be set explicitly since within C++ they are not
+    // guaranteed to be the same as that indicated by the parent (see ChangeLog
+    // for Spring 2005).
+    func-&gt;set_scope(globalScope);
+
+    // DQ (6/15/2013): There should be a non-defining declaration (but we need
+    // to migrate this example to instead use the AST Builder API).
+    // ROSE_ASSERT(func-&gt;get_firstNondefiningDeclaration() != NULL);
+    if (func-&gt;get_firstNondefiningDeclaration() == NULL) {
+      printf(&quot;WARNING: func-&gt;get_firstNondefiningDeclaration() == NULL for &quot;
+             &quot;case of func = %p = %s (allowed for tutorial example &quot;
+             &quot;transformations only) \n&quot;,
+             func, func-&gt;class_name().c_str());
+    }
+
+    // ********************************************************
+    // Insert the function declaration in the code
+    // *******************************************************
+    globalScope-&gt;prepend_declaration(func);
+
+    // Required post processing of AST required to set parent pointers and fixup
+    // template names, etc. temporaryAstFixes(globalScope);
+    AstPostProcessing(globalScope);
+  }
+}
+
+int main(int argc, char *argv[]) {
+  // Initialize and check compatibility. See Rose::initialize
+  ROSE_INITIALIZE;
+
+  SgProject *project = frontend(argc, argv);
+  ROSE_ASSERT(project != NULL);
+
+  SimpleInstrumentation treeTraversal;
+  treeTraversal.traverseInputFiles(project, preorder);
+
+  AstTests::runAllTests(project);
+  return backend(project);
+}
+</code></pre>
+<h4 id="函数调用-function-calls">函数调用 Function Calls</h4>
+<h4 id="为全局变量构造结构体-creating-a-struct-for-global-variables">为全局变量构造结构体 Creating a 'struct' for Global Variables</h4>
+<pre><code class="language-c++">int x;
+int y;
+long z;
+float pressure;
+
+int main()
+   {
+     int a = 0;
+     int b = 0;
+     float density = 1.0;
+
+     x++;
+     b++;
+
+     x = a + y;
+
+     return 0;
+   }
+</code></pre>
+<pre><code class="language-c++">struct AMPI_globals_t
+{
+  int x;
+  int y;
+  long z;
+  float pressure;
+}
+;
+struct AMPI_globals_t AMPI_globals;
+
+int main()
+   {
+     int a = 0;
+     int b = 0;
+     float density = 1.0;
+     AMPI_globals . x++;
+     b++;
+     AMPI_globals . x = a + AMPI_globals . y;
+     return 0;
+   }
 </code></pre>
 ]]></content>
     </entry>
