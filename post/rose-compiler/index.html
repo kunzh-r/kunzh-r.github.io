@@ -1,95 +1,101 @@
+<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8" >
+
 <title>Rose Compiler | kunzh&#39;s blog</title>
-<link rel="shortcut icon" href="https://kunzh-r.github.io/favicon.ico?v=1616201493159">
-<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://kunzh-r.github.io/favicon.ico?v=1616201771298">
 <link rel="stylesheet" href="https://kunzh-r.github.io/styles/main.css">
-<link rel="alternate" type="application/atom+xml" title="Rose Compiler | kunzh&#39;s blog - Atom Feed" href="https://kunzh-r.github.io/atom.xml">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 
 
 
     <meta name="description" content="本文记载学习 Rose 编译器的一些过程。
 这是一个使用 Rose 的最简单程序，该程序先初始化，然后读入 c/c++ 源文件，解析生成 AST，然后再把 AST 重新生成 c/c++ 代码，交由后端处理（此处后端由 .configure ..." />
     <meta name="keywords" content="" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
-    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
   </head>
   <body>
-    <div class="main">
-      <div class="main-content">
-        <div class="site-header">
-  <a href="https://kunzh-r.github.io">
-  <img class="avatar" src="https://kunzh-r.github.io/images/avatar.png?v=1616201493159" alt="">
-  </a>
-  <h1 class="site-title">
-    kunzh&#39;s blog
-  </h1>
-  <p class="site-description">
-    心能转物，即同如来
-  </p>
-  <div class="menu-container">
-    
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://kunzh-r.github.io">
+        <img src="https://kunzh-r.github.io/images/avatar.png?v=1616201771298" class="site-logo">
+        <h1 class="site-title">kunzh&#39;s blog</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
       
-        <a href="/" class="menu">
-          首页
-        </a>
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
       
-    
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
       
-        <a href="/archives" class="menu">
-          归档
-        </a>
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
       
-    
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
       
-        <a href="/tags" class="menu">
-          标签
-        </a>
-      
-    
-      
-        <a href="/post/about" class="menu">
-          关于
-        </a>
-      
-    
+    </div>
   </div>
-  <div class="social-container">
-    
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
       
-    
+        
       
-    
+        
       
-    
+        
       
-    
+        
       
-    
+        
+      
+    </div>
+    <div class="site-description">
+      心能转物，即同如来
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://kunzh-r.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
   </div>
 </div>
 
-        <div class="post-detail">
-          <article class="post">
-            <h2 class="post-title">
-              Rose Compiler
-            </h2>
-            <div class="post-info">
-              <span>
-                2021-03-19
-              </span>
-              <span>
-                15 min read
-              </span>
-              
-            </div>
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Rose Compiler</h2>
+            <div class="post-date">2021-03-19</div>
             
-            <div class="post-content-wrapper">
-              <div class="post-content">
-                <p>本文记载学习 Rose 编译器的一些过程。</p>
+            <div class="post-content" v-pre>
+              <p>本文记载学习 Rose 编译器的一些过程。</p>
 <p>这是一个使用 Rose 的最简单程序，该程序先初始化，然后读入 c/c++ 源文件，解析生成 AST，然后再把 AST 重新生成 c/c++ 代码，交由后端处理（此处后端由 .configure 指定，一般为 gcc）。</p>
 <pre><code class="language-cpp">#include &lt;iostream&gt;
 #include &lt;rose.h&gt;
@@ -743,104 +749,45 @@ int main()
    }
 </code></pre>
 
-              </div>
-              <div class="toc-container">
-                <ul class="markdownIt-TOC">
-<li>
-<ul>
-<li><a href="#ast-construction">AST Construction</a><br>
-*
-<ul>
-<li><a href="#%E5%A3%B0%E6%98%8E%E5%8F%98%E9%87%8F-variable-declaration">声明变量 Variable Declaration</a>
-<ul>
-<li><a href="#%E6%B3%951">法1：</a></li>
-<li><a href="#%E6%B3%952">法2：</a></li>
-</ul>
-</li>
-<li><a href="#%E8%A1%A8%E8%BE%BE%E5%BC%8F-expressions">表达式 Expressions</a></li>
-<li><a href="#%E8%B5%8B%E5%80%BC%E8%AF%AD%E5%8F%A5-assignment-statements">赋值语句 Assignment Statements</a></li>
-<li><a href="#%E5%87%BD%E6%95%B0-functions">函数 Functions</a>
-<ul>
-<li><a href="#%E6%B3%951%E4%BD%BF%E7%94%A8%E9%AB%98%E5%B1%82api%E6%AD%A4%E6%B3%95%E5%9C%A8%E9%9C%80%E8%A6%81-scope-%E4%BF%A1%E6%81%AF%E6%97%B6%E8%A2%AB%E6%98%BE%E5%BC%8F%E5%9C%B0%E4%BC%A0%E9%80%92%E5%AE%83">法1：使用高层API，此法在需要 scope 信息时被显式地传递它。</a></li>
-<li><a href="#%E6%B3%952%E4%B8%8E%E6%B3%951%E5%A4%A7%E8%87%B4%E7%9B%B8%E5%90%8C%E4%BD%BF%E7%94%A8%E9%AB%98%E5%B1%82api%E4%BD%86%E6%98%AF%E5%88%A9%E7%94%A8%E9%A2%9D%E5%A4%96%E7%9A%84%E6%A0%88%E6%AD%A4%E6%B3%95%E5%9C%A8%E9%9C%80%E8%A6%81-scope-%E4%BF%A1%E6%81%AF%E6%97%B6%E8%A2%AB%E9%9A%90%E5%BC%8F%E5%9C%B0%E4%BC%A0%E9%80%92">法2：与法1大致相同，使用高层API，但是利用额外的栈，此法在需要 scope 信息时被隐式地传递。</a></li>
-<li><a href="#%E6%B3%953%E4%BD%BF%E7%94%A8%E4%BD%8E%E5%B1%82-api-%E6%9E%84%E5%BB%BA">法3：使用低层 API 构建</a></li>
-</ul>
-</li>
-<li><a href="#%E5%87%BD%E6%95%B0%E8%B0%83%E7%94%A8-function-calls">函数调用 Function Calls</a></li>
-<li><a href="#%E4%B8%BA%E5%85%A8%E5%B1%80%E5%8F%98%E9%87%8F%E6%9E%84%E9%80%A0%E7%BB%93%E6%9E%84%E4%BD%93-creating-a-struct-for-global-variables">为全局变量构造结构体 Creating a 'struct' for Global Variables</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-
-              </div>
             </div>
-          </article>
-        </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://kunzh-r.github.io/post/lesslessying-de-gao-bie-greatergreater-lu-xun/">
+                  <h3 class="post-title">
+                    《影的告别》 鲁迅
+                  </h3>
+                </a>
+              </div>
+            
 
-        
-          <div class="next-post">
-            <div class="next">下一篇</div>
-            <a href="https://kunzh-r.github.io/post/lesslessying-de-gao-bie-greatergreater-lu-xun/">
-              <h3 class="post-title">
-                《影的告别》 鲁迅
-              </h3>
-            </a>
+            
+
           </div>
-        
 
-        
-
-        <div class="site-footer">
-  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a>
-  <a class="rss" href="https://kunzh-r.github.io/atom.xml" target="_blank">
-    <i class="ri-rss-line"></i> RSS
-  </a>
-</div>
-
+        </div>
       </div>
     </div>
 
-    <script>
-      hljs.initHighlightingOnLoad()
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
 
-      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+AOS.init();
 
-      // This should probably be throttled.
-      // Especially because it triggers during smooth scrolling.
-      // https://lodash.com/docs/4.17.10#throttle
-      // You could do like...
-      // window.addEventListener("scroll", () => {
-      //    _.throttle(doThatStuff, 100);
-      // });
-      // Only not doing it here to keep this Pen dependency-free.
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
 
-      window.addEventListener("scroll", event => {
-        let fromTop = window.scrollY;
+</script>
 
-        mainNavLinks.forEach((link, index) => {
-          let section = document.getElementById(decodeURI(link.hash).substring(1));
-          let nextSection = null
-          if (mainNavLinks[index + 1]) {
-            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
-          }
-          if (section.offsetTop <= fromTop) {
-            if (nextSection) {
-              if (nextSection.offsetTop > fromTop) {
-                link.classList.add("current");
-              } else {
-                link.classList.remove("current");    
-              }
-            } else {
-              link.classList.add("current");
-            }
-          } else {
-            link.classList.remove("current");
-          }
-        });
-      });
 
-    </script>
+
+
+
+
   </body>
 </html>
